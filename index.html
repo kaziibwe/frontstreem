@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Audio</title>
+</head>
+<body>
+    <h1>Stream Audio</h1>
+    <button id="start-stream">Start Streaming</button>
+    <button id="stop-stream" disabled>Stop Streaming</button>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById('start-stream').addEventListener('click', async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) {
+                    sendChunk(event.data);
+                }
+            };
+
+            mediaRecorder.start(250); // Capture audio chunks every 250ms
+            document.getElementById('stop-stream').disabled = false;
+            document.getElementById('start-stream').disabled = true;
+        });
+
+        document.getElementById('stop-stream').addEventListener('click', () => {
+            mediaRecorder.stop();
+            document.getElementById('stop-stream').disabled = true;
+            document.getElementById('start-stream').disabled = false;
+        });
+
+        async function sendChunk(chunk) {
+    const formData = new FormData();
+    formData.append('audio', chunk, 'chunk.webm');
+
+    try {
+        const response = await fetch('http://127.0.0.1:8000/api/stream', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Server response:', result);
+    } catch (error) {
+        console.error('Error sending chunk:', error);
+    }
+}
+
+    </script>
+</body>
+</html>
